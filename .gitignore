@@ -32,7 +32,7 @@ Thumbs.db
 *.trace.db
 uploads/
 
-# ── Universidad ──
+# ── Docs ──
 *.pdf
 *.docx
 *.zip
