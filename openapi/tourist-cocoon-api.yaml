@@ -1,0 +1,380 @@
+openapi: "3.1.0"
+info:
+  title: Tourist Cocoon API
+  version: "1.0.0"
+  description: |
+    API-First design for the Tourist Cocoon hotel automation system.
+    Sprint 2 covers: Reservations, Check-In and Access Key generation.
+  contact:
+    name: Tourist Cocoon Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Reservations
+    description: Manage hotel reservations
+  - name: Check-In
+    description: Process guest check-in
+  - name: Access Keys
+    description: Generate and retrieve room access keys
+
+# ─────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────
+paths:
+
+  # ── RESERVATIONS ──────────────────────────────────────────────
+  /api/v1/reservations:
+    post:
+      tags: [Reservations]
+      operationId: createReservation
+      summary: Create a new reservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+      responses:
+        "201":
+          description: Reservation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "409":
+          description: Room not available for the requested dates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags: [Reservations]
+      operationId: listReservations
+      summary: List all reservations (optional filters)
+      parameters:
+        - name: guestId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ReservationStatus'
+      responses:
+        "200":
+          description: List of reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationResponse'
+
+  /api/v1/reservations/{reservationId}:
+    get:
+      tags: [Reservations]
+      operationId: getReservation
+      summary: Get a reservation by ID
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        "200":
+          description: Reservation found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Reservations]
+      operationId: cancelReservation
+      summary: Cancel a reservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        "200":
+          description: Reservation cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  # ── CHECK-IN ──────────────────────────────────────────────────
+  /api/v1/reservations/{reservationId}/checkin:
+    post:
+      tags: [Check-In]
+      operationId: processCheckIn
+      summary: Submit guest check-in data for a reservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckInRequest'
+      responses:
+        "200":
+          description: Check-in completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckInResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "409":
+          description: Check-in already processed or reservation is not in CONFIRMED status
+
+  # ── ACCESS KEY ────────────────────────────────────────────────
+  /api/v1/reservations/{reservationId}/access-key:
+    post:
+      tags: [Access Keys]
+      operationId: generateAccessKey
+      summary: Generate a room access key after successful check-in
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        "201":
+          description: Access key generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessKeyResponse'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "409":
+          description: Check-in not completed yet
+
+    get:
+      tags: [Access Keys]
+      operationId: getAccessKey
+      summary: Retrieve the current access key for a reservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        "200":
+          description: Access key found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessKeyResponse'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+# ─────────────────────────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────────────────────────
+components:
+
+  parameters:
+    ReservationId:
+      name: reservationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Unique identifier of the reservation
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+
+    # ── ENUMS ────────────────────────────────────────────────
+    ReservationStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, CHECKED_IN, CHECKED_OUT, CANCELLED]
+
+    RoomType:
+      type: string
+      enum: [SINGLE, DOUBLE, SUITE, FAMILY]
+
+    # ── RESERVATION ──────────────────────────────────────────
+    CreateReservationRequest:
+      type: object
+      required: [guestName, guestEmail, roomType, checkInDate, checkOutDate]
+      properties:
+        guestName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Ana García"
+        guestEmail:
+          type: string
+          format: email
+          example: "ana.garcia@email.com"
+        guestPhone:
+          type: string
+          example: "+34 600 000 000"
+        roomType:
+          $ref: '#/components/schemas/RoomType'
+        checkInDate:
+          type: string
+          format: date
+          example: "2026-04-10"
+        checkOutDate:
+          type: string
+          format: date
+          example: "2026-04-15"
+        numberOfGuests:
+          type: integer
+          minimum: 1
+          maximum: 6
+          default: 1
+        specialRequests:
+          type: string
+          maxLength: 500
+
+    ReservationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reservationCode:
+          type: string
+          example: "TC-2026-00042"
+        guestName:
+          type: string
+        guestEmail:
+          type: string
+        roomType:
+          $ref: '#/components/schemas/RoomType'
+        roomNumber:
+          type: integer
+          nullable: true
+        checkInDate:
+          type: string
+          format: date
+        checkOutDate:
+          type: string
+          format: date
+        numberOfGuests:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        totalPrice:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── CHECK-IN ─────────────────────────────────────────────
+    CheckInRequest:
+      type: object
+      required: [documentType, documentNumber, guests]
+      properties:
+        documentType:
+          type: string
+          enum: [DNI, NIE, PASSPORT]
+        documentNumber:
+          type: string
+          example: "12345678A"
+        guests:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/GuestData'
+        estimatedArrivalTime:
+          type: string
+          format: time
+          example: "15:30"
+        paymentMethod:
+          type: string
+          enum: [CREDIT_CARD, DEBIT_CARD, CASH, ONLINE_PREPAID]
+
+    GuestData:
+      type: object
+      required: [fullName, documentNumber]
+      properties:
+        fullName:
+          type: string
+        documentNumber:
+          type: string
+        nationality:
+          type: string
+          example: "ES"
+
+    CheckInResponse:
+      type: object
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        roomNumber:
+          type: integer
+        checkInTimestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+          example: "Check-in completed. Your room is ready."
+
+    # ── ACCESS KEY ───────────────────────────────────────────
+    AccessKeyResponse:
+      type: object
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        roomNumber:
+          type: integer
+        keyCode:
+          type: string
+          description: Alphanumeric access code for the room (or QR payload)
+          example: "A1B2-C3D4-E5F6"
+        validFrom:
+          type: string
+          format: date-time
+        validUntil:
+          type: string
+          format: date-time
+        issuedAt:
+          type: string
+          format: date-time
+
+    # ── ERROR ─────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string

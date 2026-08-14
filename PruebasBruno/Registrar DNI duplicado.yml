@@ -1,0 +1,25 @@
+info:
+  name: Registrar DNI duplicado
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: http://localhost:8080/api/auth/register
+  body:
+    type: json
+    data: |-
+      {
+        "dni": "12345678A",
+        "nombre": "Usuario",
+        "apellidos": "Falso",
+        "email": "falso@gmail.com",
+        "password": "123"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

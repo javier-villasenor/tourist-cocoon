@@ -1,0 +1,25 @@
+info:
+  name: Registro Correcto
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://localhost:8080/api/auth/register
+  body:
+    type: json
+    data: |-
+      {
+        "dni": "12345678C",
+        "nombre": "Usuario",
+        "apellidos": "Bueno",
+        "email": "bueno@gmail.com",
+        "password": "1234"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
