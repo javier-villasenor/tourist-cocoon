@@ -31,3 +31,9 @@ Thumbs.db
 *.mv.db
 *.trace.db
 uploads/
+
+# ── Universidad ──
+*.pdf
+*.docx
+*.zip
+*.rar
